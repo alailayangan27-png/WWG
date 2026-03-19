@@ -2,86 +2,28 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mint Token</title>
+<title>Mint Devnet</title>
+
+<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
 
 <style>
-body {
-  margin:0;
-  height:100vh;
+body{
+  background:black;
+  color:white;
+  font-family:sans-serif;
   display:flex;
   justify-content:center;
   align-items:center;
-  background: radial-gradient(circle at top, #111, #000);
-  font-family: -apple-system, sans-serif;
-  color:white;
+  height:100vh;
 }
 
-/* CARD */
-.card {
+.card{
   width:320px;
-  padding:25px;
-  border-radius:20px;
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 0 40px rgba(0,255,150,0.1);
 }
 
-/* INPUT */
-input {
-  width:100%;
-  padding:12px;
-  border-radius:12px;
-  border:none;
-  background:#111;
-  color:white;
-  margin-bottom:10px;
-}
-
-/* BUTTON GROUP */
-.buttons {
-  display:flex;
-  gap:8px;
-  margin-bottom:10px;
-}
-
-.buttons button {
-  flex:1;
+button{
+  margin:5px;
   padding:10px;
-  border-radius:12px;
-  border:none;
-  background:#111;
-  color:white;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.buttons button.active {
-  background:#00ff99;
-  color:black;
-  box-shadow:0 0 10px #00ff99;
-}
-
-/* MAIN BUTTON */
-.main {
-  width:100%;
-  padding:14px;
-  border-radius:14px;
-  border:none;
-  background:linear-gradient(90deg,#00ff99,#00ccff);
-  color:black;
-  font-weight:bold;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.main:hover {
-  transform:scale(1.03);
-}
-
-/* STATUS */
-#status {
-  margin-top:10px;
-  font-size:14px;
 }
 </style>
 </head>
@@ -90,75 +32,84 @@ input {
 
 <div class="card">
 
-<h2>Mint Token</h2>
+<h2>Mint Devnet</h2>
 
-<input id="wallet" placeholder="Wallet address">
+<button onclick="connect()">Connect Wallet</button>
+<p id="wallet"></p>
 
-<div class="buttons">
-  <button onclick="setAmount(1,this)">$1</button>
-  <button onclick="setAmount(5,this)">$5</button>
-  <button onclick="setAmount(10,this)">$10</button>
-  <button onclick="setAmount(50,this)">$50</button>
-  <button onclick="setAmount(100,this)">$100</button>
-</div>
+<button onclick="setAmount(1)">$1</button>
+<button onclick="setAmount(5)">$5</button>
+<button onclick="setAmount(10)">$10</button>
 
 <p id="info"></p>
 
-<button class="main" onclick="mint()">Mint Now</button>
+<button onclick="pay()">Pay & Mint</button>
 
 <p id="status"></p>
 
 </div>
 
 <script>
+let wallet = null;
 let amount = 0;
 
-function setAmount(a, el){
-  amount = a;
+const receiver = "ISI_WALLET_KAMU"; // DEVNET WALLET
 
-  document.querySelectorAll(".buttons button")
-    .forEach(b => b.classList.remove("active"));
-
-  el.classList.add("active");
-
-  document.getElementById("info").innerText =
-    "Mint $" + a + " → " + (a*1000) + " TOKEN";
+async function connect(){
+  const resp = await window.solana.connect();
+  wallet = resp.publicKey.toString();
+  document.getElementById("wallet").innerText = wallet;
 }
 
-async function mint(){
-  const wallet = document.getElementById("wallet").value;
+function setAmount(a){
+  amount = a;
+  document.getElementById("info").innerText = "Pay $" + a;
+}
 
-  if(!wallet){
-    setStatus("Isi wallet!", true);
-    return;
-  }
+async function pay(){
+  if(!wallet) return alert("connect wallet");
+  if(amount===0) return alert("pilih amount");
 
-  if(amount === 0){
-    setStatus("Pilih jumlah!", true);
-    return;
-  }
+  const connection = new solanaWeb3.Connection(
+    "https://api.devnet.solana.com"
+  );
 
-  setStatus("Processing...", false);
+  const transaction = new solanaWeb3.Transaction().add(
+    solanaWeb3.SystemProgram.transfer({
+      fromPubkey: window.solana.publicKey,
+      toPubkey: new solanaWeb3.PublicKey(receiver),
+      lamports: amount * 1000000
+    })
+  );
 
+  transaction.feePayer = window.solana.publicKey;
+  transaction.recentBlockhash = (
+    await connection.getLatestBlockhash()
+  ).blockhash;
+
+  const signed = await window.solana.signTransaction(transaction);
+
+  const signature = await connection.sendRawTransaction(
+    signed.serialize()
+  );
+
+  document.getElementById("status").innerText = "Processing...";
+
+  // kirim ke backend
   const res = await fetch("/api/mint", {
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({wallet, amount})
+    body: JSON.stringify({
+      wallet,
+      amount,
+      signature
+    })
   });
 
   const data = await res.json();
 
-  if(data.error){
-    setStatus("❌ " + data.error, true);
-  } else {
-    setStatus("✅ Mint berhasil", false);
-  }
-}
-
-function setStatus(msg, err){
-  const el = document.getElementById("status");
-  el.innerText = msg;
-  el.style.color = err ? "#ff4d4d" : "#00ff99";
+  document.getElementById("status").innerText =
+    data.error ? data.error : "✅ Mint sukses!";
 }
 </script>
 
