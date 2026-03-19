@@ -5,52 +5,69 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-// 🧠 memory rate limit (simple)
-let lastRequestMap = {};
+// 🌐 DEVNET RPC (GRATIS)
+const RPC = "https://api.devnet.solana.com";
 
+// 🔍 CEK TRANSAKSI
+async function verifyTransaction(signature) {
+  const res = await fetch(RPC, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "getTransaction",
+      params: [signature, "json"]
+    })
+  });
+
+  const data = await res.json();
+
+  if (!data.result) return false;
+
+  const tx = data.result;
+
+  const instructions = tx.transaction.message.instructions;
+
+  return instructions.some(i =>
+    i.parsed &&
+    i.parsed.info.destination === process.env.RECEIVER_WALLET
+  );
+}
+
+// 🚀 API
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const ip = req.headers["x-forwarded-for"] || "unknown";
+    const { wallet, amount, signature } = req.body;
 
-    // 🚫 RATE LIMIT (5 detik)
-    if (lastRequestMap[ip] && Date.now() - lastRequestMap[ip] < 5000) {
-      return res.status(429).json({ error: "Terlalu cepat, tunggu 5 detik" });
-    }
-
-    lastRequestMap[ip] = Date.now();
-
-    const { wallet, amount } = req.body;
-
-    // 🔐 VALIDASI WALLET
+    // VALIDASI
     if (!wallet || wallet.length < 10) {
       return res.status(400).json({ error: "Wallet tidak valid" });
     }
 
-    // 🔐 VALIDASI AMOUNT
-    const allowed = [1, 5, 10, 50, 100];
+    const allowed = [1,5,10,50,100];
     if (!allowed.includes(amount)) {
-      return res.status(400).json({ error: "Jumlah tidak valid" });
+      return res.status(400).json({ error: "Amount tidak valid" });
     }
 
-    // 💰 SIMULASI PAYMENT CHECK (sementara)
-    // nanti bisa diganti cek blockchain
-    const paymentVerified = true;
-
-    if (!paymentVerified) {
-      return res.status(400).json({ error: "Pembayaran belum terdeteksi" });
+    if (!signature) {
+      return res.status(400).json({ error: "No transaction" });
     }
 
-    // 📦 INSERT DATABASE
+    // 🔍 VERIFIKASI BLOCKCHAIN
+    const valid = await verifyTransaction(signature);
+
+    if (!valid) {
+      return res.status(400).json({ error: "Transaksi tidak valid" });
+    }
+
+    // 💾 SIMPAN
     const { error } = await supabase.from("mints").insert([
-      {
-        wallet,
-        amount,
-        usd: amount
-      }
+      { wallet, amount, usd: amount }
     ]);
 
     if (error) throw error;
