@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<body style="background:black;color:white;text-align:center">
+
+<h2>Mint Token</h2>
+
+<input id="wallet" placeholder="wallet"><br><br>
+
+<button onclick="setAmount(1)">$1</button>
+<button onclick="setAmount(10)">$10</button>
+<button onclick="setAmount(50)">$50</button>
+
+<p id="info"></p>
+
+<button onclick="mint()">Mint</button>
+
+<p id="status"></p>
+
+<script>
+let amount = 0;
+
+function setAmount(a){
+  amount = a;
+  document.getElementById("info").innerText = "Mint $" + a;
+}
+
+async function mint(){
+  const wallet = document.getElementById("wallet").value;
+
+  const res = await fetch("/api/mint", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({wallet, amount})
+  });
+
+  const data = await res.json();
+
+  document.getElementById("status").innerText =
+    data.error ? data.error : "Berhasil!";
+}
+</script>
+
+</body>
+</html>
