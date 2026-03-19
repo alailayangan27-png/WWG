@@ -6,61 +6,48 @@
 
 <title>Mint Token</title>
 
-<!-- SUPABASE CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<!-- FIX CDN -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <style>
 body {
-  background: #000;
+  background: black;
   color: white;
-  font-family: -apple-system, sans-serif;
+  font-family: sans-serif;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
 }
-
 .card {
   width: 320px;
 }
-
 input {
   width: 100%;
   padding: 12px;
   border-radius: 10px;
-  border: none;
   margin-bottom: 10px;
 }
-
 .buttons {
   display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
 }
-
 .buttons button {
   flex: 1;
   padding: 10px;
   border-radius: 10px;
-  border: none;
   background: #222;
   color: white;
+  border: none;
 }
-
 .main {
   width: 100%;
   padding: 14px;
-  border-radius: 14px;
-  border: none;
-  background: #00ff88;
+  border-radius: 12px;
+  background: lime;
   color: black;
-  font-weight: bold;
+  border: none;
   margin-top: 10px;
-}
-
-.status {
-  margin-top: 10px;
-  font-size: 14px;
 }
 </style>
 </head>
@@ -69,43 +56,39 @@ input {
 
 <div class="card">
 
-  <h2>Mint Token</h2>
+<h2>Mint Token</h2>
 
-  <!-- WALLET -->
-  <input id="wallet" placeholder="Masukkan wallet kamu">
+<input id="wallet" placeholder="Wallet address">
 
-  <!-- BUTTON AMOUNT -->
-  <div class="buttons">
-    <button onclick="setAmount(1)">$1</button>
-    <button onclick="setAmount(5)">$5</button>
-    <button onclick="setAmount(10)">$10</button>
-    <button onclick="setAmount(50)">$50</button>
-    <button onclick="setAmount(100)">$100</button>
-  </div>
+<div class="buttons">
+  <button onclick="setAmount(1)">$1</button>
+  <button onclick="setAmount(5)">$5</button>
+  <button onclick="setAmount(10)">$10</button>
+  <button onclick="setAmount(50)">$50</button>
+  <button onclick="setAmount(100)">$100</button>
+</div>
 
-  <p>Mint: $<span id="usd">1</span></p>
-  <p>Receive: <span id="token">1000</span> TOKEN</p>
+<p>Mint: $<span id="usd">1</span></p>
+<p>Receive: <span id="token">1000</span> TOKEN</p>
 
-  <button class="main" onclick="mint()">Mint Now</button>
+<button class="main" onclick="mint()">Mint Now</button>
 
-  <div class="status" id="status"></div>
+<p id="status"></p>
 
 </div>
 
 <script>
-// =========================
-// 🔐 SUPABASE CONFIG
-// =========================
+// ===================
+// INIT SUPABASE
+// ===================
 const supabaseUrl = "https://zdwolnqdknlnzktbpfig.supabase.co"
-
-// 👉 GANTI DENGAN PUBLIC KEY KAMU
 const supabaseKey = "sb_publishable__dDKpBQAKtUo_Xxal9x4kQ_UcpaNn0N"
 
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
 
-// =========================
-// 💰 AMOUNT SYSTEM
-// =========================
+// ===================
+// AMOUNT
+// ===================
 let selectedAmount = 1
 
 function setAmount(val) {
@@ -114,49 +97,42 @@ function setAmount(val) {
   document.getElementById("token").innerText = val * 1000
 }
 
-// =========================
-// 🚀 MINT FUNCTION
-// =========================
+// ===================
+// MINT
+// ===================
 async function mint() {
   const wallet = document.getElementById("wallet").value
-  const usd = selectedAmount
-  const token = usd * 1000
 
   if (!wallet) {
-    alert("Masukkan wallet dulu")
+    alert("Enter wallet")
     return
   }
 
-  document.getElementById("status").innerText = "⏳ Processing..."
+  document.getElementById("status").innerText = "Processing..."
 
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("mints")
       .insert([
         {
           wallet: wallet,
-          amount: usd,
-          usd: usd,
-          token: token
+          amount: selectedAmount,
+          usd: selectedAmount,
+          token: selectedAmount * 1000
         }
       ])
 
     if (error) {
-      console.log(error)
-      document.getElementById("status").innerText = "❌ Error: " + error.message
+      document.getElementById("status").innerText = "Error: " + error.message
     } else {
-      document.getElementById("status").innerText = "✅ Mint berhasil!"
-
-      // reset
-      document.getElementById("wallet").value = ""
+      document.getElementById("status").innerText = "Success ✅"
     }
 
   } catch (err) {
-    console.log(err)
-    document.getElementById("status").innerText = "❌ Koneksi gagal"
+    document.getElementById("status").innerText = "Connection error"
   }
 }
 </script>
 
 </body>
-  </html>
+</html>
