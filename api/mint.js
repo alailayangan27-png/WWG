@@ -5,28 +5,46 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
+// 🧠 memory rate limit (simple)
+let lastRequestMap = {};
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
+    const ip = req.headers["x-forwarded-for"] || "unknown";
+
+    // 🚫 RATE LIMIT (5 detik)
+    if (lastRequestMap[ip] && Date.now() - lastRequestMap[ip] < 5000) {
+      return res.status(429).json({ error: "Terlalu cepat, tunggu 5 detik" });
+    }
+
+    lastRequestMap[ip] = Date.now();
+
     const { wallet, amount } = req.body;
 
-    // ✅ VALIDASI
+    // 🔐 VALIDASI WALLET
     if (!wallet || wallet.length < 10) {
       return res.status(400).json({ error: "Wallet tidak valid" });
     }
 
+    // 🔐 VALIDASI AMOUNT
     const allowed = [1, 5, 10, 50, 100];
     if (!allowed.includes(amount)) {
-      return res.status(400).json({ error: "Amount tidak valid" });
+      return res.status(400).json({ error: "Jumlah tidak valid" });
     }
 
-    // ✅ RATE LIMIT SIMPLE (per request)
-    // (bisa ditingkatkan nanti)
+    // 💰 SIMULASI PAYMENT CHECK (sementara)
+    // nanti bisa diganti cek blockchain
+    const paymentVerified = true;
 
-    // ✅ INSERT KE DATABASE
+    if (!paymentVerified) {
+      return res.status(400).json({ error: "Pembayaran belum terdeteksi" });
+    }
+
+    // 📦 INSERT DATABASE
     const { error } = await supabase.from("mints").insert([
       {
         wallet,
@@ -37,14 +55,9 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    return res.status(200).json({
-      success: true,
-      message: "Mint berhasil"
-    });
+    return res.json({ success: true });
 
   } catch (err) {
-    return res.status(500).json({
-      error: err.message
-    });
+    return res.status(500).json({ error: err.message });
   }
 }
