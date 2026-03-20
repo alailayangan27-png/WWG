@@ -6,46 +6,46 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-export default async function handler(req, res) {
+export default async function handler(req, res){
 
-  try {
+  try{
 
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+    if(req.method !== "POST"){
+      return res.status(405).json({ error:"method not allowed" });
     }
 
     const { wallet, amount, signature } = req.body;
 
-    if (!wallet || !amount || !signature) {
-      return res.status(400).json({ error: "Data tidak lengkap" });
+    if(!wallet || !amount || !signature){
+      return res.status(400).json({ error:"data tidak lengkap" });
     }
 
-    // 🔒 CEK DOUBLE CLAIM
-    const { data: existing } = await supabase
+    // 🔒 anti double claim
+    const { data:existing } = await supabase
       .from("mints")
       .select("*")
       .eq("signature", signature)
       .single();
 
-    if (existing) {
-      return res.status(400).json({ error: "Sudah digunakan" });
+    if(existing){
+      return res.status(400).json({ error:"sudah digunakan" });
     }
 
-    // 🔍 CEK BLOCKCHAIN
-    const result = await verifyTx(signature, amount);
+    // 🔍 verify blockchain
+    const check = await verifyTx(signature, amount);
 
-    if (!result.ok) {
-      return res.status(400).json({ error: result.reason });
+    if(!check.ok){
+      return res.status(400).json({ error:check.error });
     }
 
-    // 💾 SIMPAN
+    // 💾 simpan
     await supabase.from("mints").insert([
       { wallet, amount, signature }
     ]);
 
-    return res.json({ success: true });
+    return res.json({ success:true });
 
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+  }catch(err){
+    return res.status(500).json({ error:err.message });
   }
-                                   }
+}
