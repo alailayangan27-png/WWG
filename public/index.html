@@ -2,17 +2,18 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
 
 <style>
 body{
   background:#0b0b0f;
   color:white;
-  font-family:sans-serif;
   display:flex;
   justify-content:center;
   align-items:center;
   height:100vh;
+  font-family:sans-serif;
 }
 .card{
   background:#111;
@@ -23,6 +24,9 @@ body{
 button{
   margin:5px;
   padding:10px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
 }
 </style>
 </head>
@@ -34,7 +38,7 @@ button{
 <h2>Mint</h2>
 
 <button onclick="connect()">Connect</button>
-<p id="wallet"></p>
+<p id="wallet">Not connected</p>
 
 <button onclick="setAmount(1)">$1</button>
 <button onclick="setAmount(5)">$5</button>
@@ -52,61 +56,79 @@ button{
 let wallet = null;
 let amount = 0;
 
+// ⚠️ GANTI WALLET KAMU
 const receiver = "Egp6tFjnQV9pZ277rS2m16fQbFPKYeZKGQ5RVYd9Mxec";
 
 function setAmount(a){
   amount = a;
-  document.getElementById("info").innerText = "$" + a;
+  document.getElementById("info").innerText = "Pay $" + a;
 }
 
 async function connect(){
+  if(!window.solana){
+    alert("Buka di browser wallet!");
+    return;
+  }
+
   const resp = await window.solana.connect();
   wallet = resp.publicKey.toString();
+
   document.getElementById("wallet").innerText = wallet;
 }
 
 async function pay(){
 
-  if(!wallet) return alert("connect dulu");
-  if(!amount) return alert("pilih amount");
+  try{
 
-  const connection = new solanaWeb3.Connection(
-    "https://api.mainnet-beta.solana.com"
-  );
+    if(!wallet) return alert("connect dulu");
+    if(!amount) return alert("pilih amount");
 
-  const lamports = amount * 1000000;
+    const connection = new solanaWeb3.Connection(
+      "https://api.mainnet-beta.solana.com"
+    );
 
-  const tx = new solanaWeb3.Transaction().add(
-    solanaWeb3.SystemProgram.transfer({
-      fromPubkey: window.solana.publicKey,
-      toPubkey: new solanaWeb3.PublicKey(receiver),
-      lamports
-    })
-  );
+    const lamports = amount * 1000000;
 
-  tx.feePayer = window.solana.publicKey;
-  tx.recentBlockhash = (
-    await connection.getLatestBlockhash()
-  ).blockhash;
+    const tx = new solanaWeb3.Transaction().add(
+      solanaWeb3.SystemProgram.transfer({
+        fromPubkey: window.solana.publicKey,
+        toPubkey: new solanaWeb3.PublicKey(receiver),
+        lamports
+      })
+    );
 
-  const signed = await window.solana.signTransaction(tx);
+    tx.feePayer = window.solana.publicKey;
 
-  const signature = await connection.sendRawTransaction(
-    signed.serialize()
-  );
+    const { blockhash } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
 
-  document.getElementById("status").innerText = "Verifying...";
+    const signed = await window.solana.signTransaction(tx);
 
-  const res = await fetch("/api/verify", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ wallet, amount, signature })
-  });
+    const signature = await connection.sendRawTransaction(
+      signed.serialize()
+    );
 
-  const data = await res.json();
+    document.getElementById("status").innerText =
+      "TX: " + signature;
 
-  document.getElementById("status").innerText =
-    data.error || "✅ Success";
+    console.log("Signature:", signature);
+
+    // kirim ke backend
+    const res = await fetch("/api/verify", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ wallet, amount, signature })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("status").innerText =
+      data.error || "✅ Success";
+
+  }catch(err){
+    console.log(err);
+    alert("Error: " + err.message);
+  }
 }
 </script>
 
