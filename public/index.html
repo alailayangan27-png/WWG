@@ -2,13 +2,11 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mint Devnet</title>
-
 <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
 
 <style>
 body{
-  background:black;
+  background:#0b0b0f;
   color:white;
   font-family:sans-serif;
   display:flex;
@@ -16,11 +14,12 @@ body{
   align-items:center;
   height:100vh;
 }
-
 .card{
-  width:320px;
+  background:#111;
+  padding:20px;
+  border-radius:20px;
+  text-align:center;
 }
-
 button{
   margin:5px;
   padding:10px;
@@ -32,9 +31,9 @@ button{
 
 <div class="card">
 
-<h2>Mint Devnet</h2>
+<h2>Mint</h2>
 
-<button onclick="connect()">Connect Wallet</button>
+<button onclick="connect()">Connect</button>
 <p id="wallet"></p>
 
 <button onclick="setAmount(1)">$1</button>
@@ -43,7 +42,7 @@ button{
 
 <p id="info"></p>
 
-<button onclick="pay()">Pay & Mint</button>
+<button onclick="pay()">Pay</button>
 
 <p id="status"></p>
 
@@ -53,7 +52,12 @@ button{
 let wallet = null;
 let amount = 0;
 
-const receiver = "ISI_WALLET_KAMU"; // DEVNET WALLET
+const receiver = "ISI_WALLET_KAMU";
+
+function setAmount(a){
+  amount = a;
+  document.getElementById("info").innerText = "$" + a;
+}
 
 async function connect(){
   const resp = await window.solana.connect();
@@ -61,55 +65,48 @@ async function connect(){
   document.getElementById("wallet").innerText = wallet;
 }
 
-function setAmount(a){
-  amount = a;
-  document.getElementById("info").innerText = "Pay $" + a;
-}
-
 async function pay(){
-  if(!wallet) return alert("connect wallet");
-  if(amount===0) return alert("pilih amount");
+
+  if(!wallet) return alert("connect dulu");
+  if(!amount) return alert("pilih amount");
 
   const connection = new solanaWeb3.Connection(
-    "https://api.devnet.solana.com"
+    "https://api.mainnet-beta.solana.com"
   );
 
-  const transaction = new solanaWeb3.Transaction().add(
+  const lamports = amount * 1000000;
+
+  const tx = new solanaWeb3.Transaction().add(
     solanaWeb3.SystemProgram.transfer({
       fromPubkey: window.solana.publicKey,
       toPubkey: new solanaWeb3.PublicKey(receiver),
-      lamports: amount * 1000000
+      lamports
     })
   );
 
-  transaction.feePayer = window.solana.publicKey;
-  transaction.recentBlockhash = (
+  tx.feePayer = window.solana.publicKey;
+  tx.recentBlockhash = (
     await connection.getLatestBlockhash()
   ).blockhash;
 
-  const signed = await window.solana.signTransaction(transaction);
+  const signed = await window.solana.signTransaction(tx);
 
   const signature = await connection.sendRawTransaction(
     signed.serialize()
   );
 
-  document.getElementById("status").innerText = "Processing...";
+  document.getElementById("status").innerText = "Verifying...";
 
-  // kirim ke backend
-  const res = await fetch("/api/mint", {
+  const res = await fetch("/api/verify", {
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      wallet,
-      amount,
-      signature
-    })
+    body: JSON.stringify({ wallet, amount, signature })
   });
 
   const data = await res.json();
 
   document.getElementById("status").innerText =
-    data.error ? data.error : "✅ Mint sukses!";
+    data.error || "✅ Success";
 }
 </script>
 
