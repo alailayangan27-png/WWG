@@ -1,5 +1,5 @@
 {
   "routes": [
-    { "src": "/api/mint", "dest": "/api/mint.js" }
+    { "src": "/api/verify", "dest": "/api/verify.js" }
   ]
 }
